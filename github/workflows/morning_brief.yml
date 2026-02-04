@@ -1,0 +1,35 @@
+name: Update Morning Briefing
+
+on:
+  schedule:
+    - cron: '0 12 * * *' # Runs at 12:00 UTC (roughly 7-8 AM ET)
+  workflow_dispatch: # Allows you to run it manually for testing
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: pip install requests feedparser
+
+      - name: Run script
+        env:
+          NYT_KEY: ${{ secrets.NYT_KEY }}
+          FINNHUB_KEY: ${{ secrets.FINNHUB_KEY }}
+        run: python your_script_name.py # Change this to your filename!
+
+      - name: Commit and Push changes
+        run: |
+          git config --global user.name "GitHub Action"
+          git config --global user.email "action@github.com"
+          git add index.html
+          git commit -m "Morning briefing updated" || exit 0
+          git push
