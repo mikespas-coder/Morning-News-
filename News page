@@ -1,0 +1,78 @@
+import requests
+import feedparser
+from datetime import datetime
+
+# --- CONFIGURATION (Add your keys here) ---
+NYT_KEY = "YOUR_NYT_KEY"
+FINNHUB_KEY = "YOUR_FINNHUB_KEY"
+
+def fetch_data():
+    content = ""
+
+    # 1. Fetch NYT Top Stories & Op-Eds
+    sections = ["home", "opinion"]
+    for section in sections:
+        url = f"https://api.nytimes.com/svc/topstories/v2/{section}.json?api-key={NYT_KEY}"
+        data = requests.get(url).json().get('results', [])[:3]
+        title = "NYT: Global News" if section == "home" else "NYT: Op-Ed & Ideas"
+        content += format_section(title, data, "title", "abstract", "url")
+
+    # 2. Fetch BBC (RSS)
+    bbc = feedparser.parse("http://feeds.bbci.co.uk/news/rss.xml").entries[:3]
+    content += format_section("BBC World Report", bbc, "title", "summary", "link")
+
+    # 3. Fetch Market News (Finnhub)
+    stocks = requests.get(f"https://finnhub.io/api/v1/news?category=general&token={FINNHUB_KEY}").json()[:3]
+    content += format_section("Market Pulse", stocks, "headline", "summary", "url")
+
+    return content
+
+def format_section(header, items, t_key, s_key, l_key):
+    """Turns raw data into HTML cards"""
+    html = f"<h2 class='text-2xl font-bold mt-8 mb-4 border-b-2 border-gray-200 pb-2'>{header}</h2>"
+    html += "<div class='grid gap-4'>"
+    for item in items:
+        html += f"""
+        <div class='p-4 bg-white shadow-sm rounded-lg border border-gray-100'>
+            <a href='{item[l_key]}' class='text-blue-700 hover:underline font-semibold'>{item[t_key]}</a>
+            <p class='text-gray-600 text-sm mt-1'>{item[s_key][:200]}...</p>
+        </div>
+        """
+    html += "</div>"
+    return html
+
+def build_page():
+    news_html = fetch_data()
+    date_str = datetime.now().strftime("%A, %B %d, %Y")
+
+    full_html = f"""
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <script src="https://cdn.tailwindcss.com"></script>
+        <title>My Morning Briefing</title>
+    </head>
+    <body class="bg-gray-50 text-gray-900 font-sans p-6">
+        <div class="max-w-3xl mx-auto">
+            <header class="mb-10 text-center">
+                <h1 class="text-4xl font-extrabold text-gray-800">The Daily Brief</h1>
+                <p class="text-gray-500 uppercase tracking-widest text-sm mt-2">{date_str}</p>
+            </header>
+            
+            {news_html}
+
+            <footer class="mt-12 text-center text-gray-400 text-xs">
+                Generated via GitHub Actions • Data from NYT, BBC, AP, and Finnhub
+            </footer>
+        </div>
+    </body>
+    </html>
+    """
+    
+    with open("index.html", "w") as f:
+        f.write(full_html)
+    print("Landing page generated successfully!")
+
+if __name__ == "__main__":
+    build_page()
